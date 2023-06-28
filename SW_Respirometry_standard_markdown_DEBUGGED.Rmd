@@ -1,37 +1,30 @@
 ---
 title: "SW (NO E. coli) Standard  Respirometry Data Analysis"
 author: "Caroline Fleming (adapted from S. Speroff with help from Brian Kennedy and Ethan Deyle)"
-date: "last updated 10/17/2022"
+date: "last updated 06/28/2023"
 output: html_document
 ---
 
 
 # Some important notes for working with this code: 
-  ## We are having a tough time getting around a bug that makes the last column of the output data be 2.12. To work around this, you need to 1) add a dummy column of data to the end of your data (that will just have a 2.12 output), and 2) put the number of vials as the # of experimental vials (NOT including negative control) + dummy column, and 3) throw out the last value of 2.12 on the output csv
-  ##Remember that negative control always has to be A1 vial, and that order goes A1-D1, etc.
+
+  ##Remember that negative control with sodium nitrate (Oxycal, https://www.pyroscience.com/en/products/accessories/calibration-capsules/oxcal)  always has to be A1 vial, and that order goes A1-D1, etc.
   ## LINES TO ADAPT FOR EACH RUN: 
   ### Line 31: Input data file straight from PreSens software
   ### Line 109: Number of vials filled (SEE NOTE ABOVE)
   ### Line 190: CSV output name
   
-  ## R hates 0s, so we want to replace with something small in the weights column
+  ## R hates 0s, so we may want to replace with something small in the weights column
 
 
-```{r setup, include=FALSE, echo=FALSE}
+```{r set working directory}
 #For some reason knitr is wanting me to set the WD this way
 require("knitr")
-opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox/EXP_3/EXP_3B_resp")
+opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Doubling Time Experiment/")
 ```
 
-```{r Set working directory and install packages}
-#setwd("C:/Users/carol/Documents/PhD Boston University 2019-/Ecotoxicity/Summer 2022 N Ecotox/Experiment1/RunA_7_26_22")
+```{r install packages}
 
-#setting directory a different way
-#opts_knit$set(root.dir="C:/Users/carol/Documents/PhD Boston University 2019-/Ecotoxicity/Summer 2022 N Ecotox/Experiment1/RunA_7_26_22")
-#{r setup, include=FALSE, echo=FALSE}
-#require("knitr")
-#opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Ecotoxicity/Summer 2022 N Ecotox/Experiment1/RunA_7_26_22")
-#getwd()
 #installing new respR
 #install.packages("respR")
 # library necessary packages
@@ -39,6 +32,7 @@ opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/C
 library("knitr")
 library(respR)
 library(tidyverse)
+library(tibble)
 #readr is installed in tidyverse
 ```
 
@@ -46,7 +40,7 @@ library(tidyverse)
 ```{r EDIT ME - IMPORT DATA}
 # data import
 #the following is a command from readr
-data <- read_csv("EXP3B_3_09_05_22_NO_e_coli_Oxygen.csv", skip=12, na=c("No Sensor","NA"))
+data <- read_csv("Run5_6_20_23_Oxygen.csv", skip=12, na=c("No Sensor","NA"))
 
 
 ```
@@ -57,7 +51,7 @@ data <- read_csv("EXP3B_3_09_05_22_NO_e_coli_Oxygen.csv", skip=12, na=c("No Sens
 names(data)[names(data) == "Time/Min."] <- "Minutes" 
 
 # remove unnecessary columns (keep only data/time, minutes, and data)
-data <- data[,1:27]
+data <- data[,1:26]
 
 # new time elapsed (sec) interval column
 for (i in 1:nrow(data)){ 
@@ -73,37 +67,36 @@ for (i in 1:nrow(data)){
 
 #Rename Date/Time, Date.Time
 names(data)[1] <-"Date.Time"
-# final data check
+# final data check if you want
 #str(data)
 
 
 #make sure all are numeric
 
-data$A1<-as.numeric(data$A1)
+data$A1 <- as.numeric(data$A1)
 data$A2 <- as.numeric(data$A2)
 data$A3 <- as.numeric(data$A3)
 data$A4 <- as.numeric(data$A4)
 data$A5 <- as.numeric(data$A5)
 data$A6 <- as.numeric(data$A6)
-data$B1<-as.numeric(data$B1)
+data$B1 <- as.numeric(data$B1)
 data$B2 <- as.numeric(data$B2)
 data$B3 <- as.numeric(data$B3)
 data$B4 <- as.numeric(data$B4)
 data$B5 <- as.numeric(data$B5)
 data$B6 <- as.numeric(data$B6)
-data$C1<-as.numeric(data$C1)
+data$C1 <- as.numeric(data$C1)
 data$C2 <- as.numeric(data$C2)
 data$C3 <- as.numeric(data$C3)
 data$C4 <- as.numeric(data$C4)
 data$C5 <- as.numeric(data$C5)
 data$C6 <- as.numeric(data$C6)
-data$D1<-as.numeric(data$D1)
+data$D1 <- as.numeric(data$D1)
 data$D2 <- as.numeric(data$D2)
 data$D3 <- as.numeric(data$D3)
 data$D4 <- as.numeric(data$D4)
 data$D5 <- as.numeric(data$D5)
 data$D6 <- as.numeric(data$D6)
-data$E1 <- as.numeric(data$E1) #dummy data, you may want to delete me!!
 
 
 ```
@@ -116,14 +109,11 @@ data<-subset(data,data$Minutes<=270)
 ```{r Scale negative O2 control and re-zero baseline}
 
 # calculate the mean value of our negative control in a new df
-#selecting columns with data - column with negative control
+#selecting columns with data and then subtract the average repiration rate from column with negative control
 #note: na.rm=TRUE tells R to ignore NAs
-neg <- data[,3:27] - mean(data$A1, na.rm=TRUE)
-#Trying something out where I subtract each data column by the negative control at that moment
-#neg <- data[,3:27] - data$A1
-#mean(data$A1, na.rm=TRUE)
+neg <- data[,3:26] - mean(data$A1, na.rm=TRUE)
+
 # create new columns in neg to match the time values in data
-library(tibble)
 neg <- neg %>%
   add_column(Minutes = data$Minutes,
              .before = "A1")
@@ -132,7 +122,7 @@ neg <- neg %>%
              .before = "Minutes")
 neg <- neg %>%
   add_column(Time.Elapsed.Sec = data$Time.Elapsed.Sec,
-             .after = "E1") 
+             .after = "D6") 
 neg <- neg %>%
   add_column(Time.Elapsed.Min = data$Time.Elapsed.Min,
              .after = "Time.Elapsed.Sec")
@@ -144,8 +134,8 @@ data <- neg
 ```
 
 ```{r EDIT ME - TEMPLATE UPLOAD FOR WEIGHTS}
-getwd()
-resp_info <- read.csv("template_resp_EXP3B_3_09_05_22_NO_e_coli_Oxygen.csv", header=TRUE) # NUMBER ORDER, NOT LETTER ORDER
+
+resp_info <- read.csv("TEMPLATE Resp run #5 6.20.23.csv", header=TRUE) # NUMBER ORDER, NOT LETTER ORDER
   volume= as.numeric(resp_info$volume)
   t= as.numeric(resp_info$temp)
   S= as.numeric(resp_info$salinity)
@@ -156,16 +146,15 @@ resp_info <- read.csv("template_resp_EXP3B_3_09_05_22_NO_e_coli_Oxygen.csv", hea
 ```{r num vials filled}
 #RUN BASED ON NUMBERS NOT LETTERS! (NEED IT IN ORDER)
 #enter number of vials filled in experiment
-#do NOT include negative control but DO include dummy data
 num_vials_filled <- 24
+
 ```
 
 ```{r generate background respiration rate, SW}
 
 #background SW rate of SW only
-library(respR)
-# Make a SW control dataframe using columns 4 &5
-SW.data <- na.omit(data[c(29, 4)])
+# Make a SW control dataframe using columns 4 (our SW positive control) & the time
+SW.data <- na.omit(data[c(27, 4)])
 
 
 # SW inspect object, with all oxygen values pooled
@@ -177,21 +166,21 @@ SW_insp <- inspect(SW.data,
 # check assumptions of inspect object 
 print(SW_insp)
 
-# Calc background rate of sw subset data_speroff 
+# Calc background rate of sw subset, this is the big calculation from the RespR package
 SW.rate <- calc_rate.bg(SW.data, 
                         time = 1,
                         oxygen = 2)
 
 # print calculated rates & average rate
 print(SW.rate)
-#getwd()
+
 
 
 ```
 
 ```{r Negative oxygen control}
 # Make a -O2 control data_speroffframe using column 3
-NEG.O2.data<- na.omit(data[c(29, 3)])
+NEG.O2.data<- na.omit(data[c(27, 3)])
 
 # Inspect 
 NEG_O2_insp <- inspect(NEG.O2.data,
@@ -201,13 +190,15 @@ NEG_O2_insp <- inspect(NEG.O2.data,
 # Print
 print(NEG_O2_insp)
 
-# Calc background rate of sw subset data_speroff 
+# Calc background rate of negative O2 control
 NEG.O2.rate <- calc_rate.bg(NEG.O2.data, 
                             time = 1,
                             oxygen = 2)
 
 # print calculated rates & average rate
 print(NEG.O2.rate)
+
+#these are really just checks
 ```
 
 ```{r For loop}
@@ -215,10 +206,10 @@ print(NEG.O2.rate)
 # create empty output vector to fill in in for loop
 output_mass_specific_O2 <- rep("NA", num_vials_filled)
 # selecting columns with data based on number of vials filled
-data2 <- data[, c(1:2, 3:(3 + num_vials_filled), 28:29)] #update last columns for a full run
-#data2 <- data[, c(1:2, 3:(2 + num_vials_filled), 18:19)] #update last columns for a full run
-#running for loop for number of vials filled
-#IT WAS BREAKING ON #1 SO I CHANGED IT TO 2: num_vials_filled
+data2 <- data[, c(1:2, 3:(3 + num_vials_filled), 27:28)] #update last columns for a full run
+
+#BIG FOR LOOP
+#NOTE: this for loop starts at B1, what should be the positive oxygen control
 for (i in 2:num_vials_filled) { 
   temp.data <- data2[, c(ncol(data2), i+3)]
   #  temp.data <- data2[c(ncol(data2), i+3)]
@@ -290,7 +281,7 @@ mass_animal
 names <- c("B1", "C1", "D1", "A2", "B2", "C2", "D2", "A3", "B3", "C3", "D3" ,"A4" ,"B4", "C4" ,"D4", "A5", "B5", "C5" ,"D5" ,"A6", "B6", "C6", "D6")
 names_temp <- names[1: num_vials_filled]
 output_temp<-rbind(names_temp,output_mass_specific_O2)
-write.csv(output_temp, "OUTPUT_EXP3B_3_09_05_22_NO_e_coli_Oxygen.csv", row.names=FALSE)
+write.csv(output_temp, "OUTPUT_Doubling_time_Run5_Oxygen.csv", row.names=FALSE)
 
 
 ```
