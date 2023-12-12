@@ -1,7 +1,7 @@
 ---
 title: "SW (NO E. coli) Standard  Respirometry Data Analysis"
-author: "Caroline Fleming (adapted from S. Speroff with help from Brian Kennedy and Ethan Deyle)"
-date: "last updated 06/28/2023"
+author: "Caroline Fleming Ianniello (adapted from S. Speroff with help from Brian Kennedy and Ethan Deyle)"
+date: "last updated 12/12/2023"
 output: html_document
 ---
 
@@ -10,17 +10,17 @@ output: html_document
 
   ##Remember that negative control with sodium nitrate (Oxycal, https://www.pyroscience.com/en/products/accessories/calibration-capsules/oxcal)  always has to be A1 vial, and that order goes A1-D1, etc.
   ## LINES TO ADAPT FOR EACH RUN: 
-  ### Line 31: Input data file straight from PreSens software
-  ### Line 109: Number of vials filled (SEE NOTE ABOVE)
-  ### Line 190: CSV output name
+  ### Input data file straight from PreSens software
+  ### Number of vials filled (SEE NOTE ABOVE)
+  ### CSV output name
   
   ## R hates 0s, so we may want to replace with something small in the weights column
 
 
 ```{r set working directory}
-#For some reason knitr is wanting me to set the WD this way
-require("knitr")
-opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Doubling Time Experiment/")
+# #For some reason knitr is wanting me to set the WD this way
+# require("knitr")
+# opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Astrangia_nutrient_stressors_Rotjan_lab/Surface_area_resp_reruns")
 ```
 
 ```{r install packages}
@@ -38,9 +38,9 @@ library(tibble)
 
 
 ```{r EDIT ME - IMPORT DATA}
-# data import
+# raw data import
 #the following is a command from readr
-data <- read_csv("Run5_6_20_23_Oxygen.csv", skip=12, na=c("No Sensor","NA"))
+data <- read_csv("EXP1A_1_07_26_22_NO_e_coli_Oxygen.csv", skip=12, na=c("No Sensor","NA"))
 
 
 ```
@@ -103,13 +103,13 @@ data$D6 <- as.numeric(data$D6)
 
 ```{r cut off everything past four and a half hours}
 data<-subset(data,data$Minutes<=270)
-#270 minutes is four and a half hours
+#270 minutes is four and a half hours. We are manually cutting off all experiments after four and a half hours.
 ```
 
 ```{r Scale negative O2 control and re-zero baseline}
 
 # calculate the mean value of our negative control in a new df
-#selecting columns with data and then subtract the average repiration rate from column with negative control
+#selecting columns with data and then subtract the average respiration rate from column with negative control
 #note: na.rm=TRUE tells R to ignore NAs
 neg <- data[,3:26] - mean(data$A1, na.rm=TRUE)
 
@@ -133,10 +133,10 @@ data <- neg
 
 ```
 
-```{r EDIT ME - TEMPLATE UPLOAD FOR WEIGHTS}
+```{r EDIT ME - TEMPLATE UPLOAD FOR SURFACE AREA}
 
-resp_info <- read.csv("TEMPLATE Resp run #5 6.20.23.csv", header=TRUE) # NUMBER ORDER, NOT LETTER ORDER
-  volume= as.numeric(resp_info$volume)
+resp_info <- read.csv("SA_template_resp_EXP1A_1_07_26_22_NO_e_coli_Oxygen.csv", header=TRUE) # NUMBER ORDER, NOT LETTER ORDER
+  volume= as.numeric(resp_info$volume) #this will always be 0.0019L so we can just hard code it
   t= as.numeric(resp_info$temp)
   S= as.numeric(resp_info$salinity)
   P= as.numeric(resp_info$pressure)
@@ -154,7 +154,7 @@ num_vials_filled <- 24
 
 #background SW rate of SW only
 # Make a SW control dataframe using columns 4 (our SW positive control) & the time
-SW.data <- na.omit(data[c(27, 4)])
+SW.data <- na.omit(data[c(28, 4)]) #MAKE SURE THIS IS THE MINUTES COLUMN
 
 
 # SW inspect object, with all oxygen values pooled
@@ -179,8 +179,8 @@ print(SW.rate)
 ```
 
 ```{r Negative oxygen control}
-# Make a -O2 control data_speroffframe using column 3
-NEG.O2.data<- na.omit(data[c(27, 3)])
+# Make a -O2 control data_frame using column 3, which will ALWAYS be the negative control
+NEG.O2.data<- na.omit(data[c(28, 3)])
 
 # Inspect 
 NEG_O2_insp <- inspect(NEG.O2.data,
@@ -204,12 +204,13 @@ print(NEG.O2.rate)
 ```{r For loop}
 
 # create empty output vector to fill in in for loop
-output_mass_specific_O2 <- rep("NA", num_vials_filled)
+output_area_specific_O2 <- rep("NA", num_vials_filled)
 # selecting columns with data based on number of vials filled
 data2 <- data[, c(1:2, 3:(3 + num_vials_filled), 27:28)] #update last columns for a full run
 
 #BIG FOR LOOP
-#NOTE: this for loop starts at B1, what should be the positive oxygen control
+#NOTE: this for loop starts at B1, what should be the positive oxygen control, because we don't care about A1 the negative control
+i=4
 for (i in 2:num_vials_filled) { 
   temp.data <- data2[, c(ncol(data2), i+3)]
   #  temp.data <- data2[c(ncol(data2), i+3)]
@@ -249,39 +250,41 @@ for (i in 2:num_vials_filled) {
                      from = 1,
                      to = nrow(temp.data),
                      by = "row")
-#now adjusting the rate to E. coli + SW
-  temp_adjusted_rate <- adjust_rate(temp_rate, SW.rate) #adjust to background seawater respiration WITHOUT E. coli
-
-  mass_animal= as.numeric(resp_info[1, i + 8]) #selecting 8 because that is the first with real data -- first vial column will always be negative control
+#now adjusting the rate to SW
+  temp_adjusted_rate <- adjust_rate(temp_rate, SW.rate) #adjust to background seawater respiration
+  
+  area_animal = as.numeric(resp_info[1, i + 8]) #selecting 8 because that is the first with real data -- first vial column will always be negative control
   
   MO2_temp <- convert_rate(temp_adjusted_rate,
                        oxy.unit = "%Air",            # original O2 units
                        time.unit = "min",        # time units 
-                       output.unit = "umol/min/g",     # desired rate units 
-                       volume = volume,             # chamber liquid volume
-                       mass = mass_animal,              # mass in GRAMS
+                       output.unit = "umol/hr/cm2",     # desired rate units 
+                       volume = 0.0019,             # chamber liquid volume, MUST BE IN LITERS, will always be 1.9mL
+                       area = convert_val(area_animal, from="cm2"),           # surface area MUST BE in meters squared (take cm squared / 10,000) using convert_val function to get m2
                        t = t,                 # temperature
                        S = S,                   # salinity 
                        P = P)               # atmospheric pressure
 
-  #now we extract the mass specific rates and put them in the empty vector we made
-  output_mass_specific_O2[i] <- as.numeric(MO2_temp$summary$rate.m.spec)
+  #now we extract the area specific rates and put them in the empty vector we made
+  output_area_specific_O2[i] <- as.numeric(MO2_temp$summary$rate.a.spec)
 
 }
-t
-S
-P
-mass_animal
-
- output_mass_specific_O2[6]
+# t
+# S
+# P
+# area_animal
+# 
+#  output_area_specific_O2[6]
 ```
 
+
+
 ```{r EDIT ME - OUTPUT FILE}
-#taking output from output_mass_specific_O2 and putting it into a CSV by vial name
+#taking output from output_area_specific_O2 and putting it into a CSV by vial name
 names <- c("B1", "C1", "D1", "A2", "B2", "C2", "D2", "A3", "B3", "C3", "D3" ,"A4" ,"B4", "C4" ,"D4", "A5", "B5", "C5" ,"D5" ,"A6", "B6", "C6", "D6")
 names_temp <- names[1: num_vials_filled]
-output_temp<-rbind(names_temp,output_mass_specific_O2)
-write.csv(output_temp, "OUTPUT_Doubling_time_Run5_Oxygen.csv", row.names=FALSE)
+output_temp<-rbind(names_temp,output_area_specific_O2)
+write.csv(output_temp, "OUTPUT_SA_EXP1A_1_07_26_22_NO_e_coli_Oxygen.csv", row.names=FALSE)
 
 
 ```

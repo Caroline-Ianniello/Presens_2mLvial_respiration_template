@@ -1,7 +1,7 @@
 ---
 title: "ECOLI Standard  Respirometry Data Analysis"
-author: "Caroline Fleming (adapted from S. Speroff with help from Brian Kennedy and Ethan Deyle)"
-date: "last updated 10/1/2022"
+author: "Caroline Fleming Ianniello (adapted from S. Speroff with help from Brian Kennedy and Ethan Deyle)"
+date: "last updated 12/1/2023"
 output: html_document
 ---
 
@@ -18,8 +18,8 @@ output: html_document
 
 ```{r setup, include=FALSE, echo=FALSE}
 #For some reason knitr is wanting me to set the WD this way
-require("knitr")
-opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox/EXP_3/EXP_3B_resp")
+# require("knitr")
+# opts_knit$set(root.dir = "C:/Users/carol/Documents/PhD Boston University 2019-/Chapter_2_Ecotox/Summer_2022_N_Ecotox/EXP_3/EXP_3B_resp")
 ```
 
 ```{r Set working directory and install packages}
@@ -45,7 +45,7 @@ library(tidyverse)
 ```{r EDIT ME - IMPORT DATA!}
 # data import
 #the following is a command from readr
-data <- read_csv("EXP3B_3_09_05_22_e_coli_Oxygen.csv", skip=12, na=c("No Sensor","NA"))
+data <- read_csv("EXP1A_1_07_26_22_NO_e_coli_Oxygen.csv", skip=12, na=c("No Sensor","NA"))
 
 
 ```
@@ -56,7 +56,7 @@ data <- read_csv("EXP3B_3_09_05_22_e_coli_Oxygen.csv", skip=12, na=c("No Sensor"
 names(data)[names(data) == "Time/Min."] <- "Minutes" 
 
 # remove unnecessary columns (keep only data/time, minutes, and data)
-data <- data[,1:27] #sometimes you have to change this last number, check it out
+data <- data[,1:26] #sometimes you have to change this last number, check it out
 
 # new time elapsed (sec) interval column
 for (i in 1:nrow(data)){ 
@@ -102,7 +102,7 @@ data$D3 <- as.numeric(data$D3)
 data$D4 <- as.numeric(data$D4)
 data$D5 <- as.numeric(data$D5)
 data$D6 <- as.numeric(data$D6)
-data$E1 <- as.numeric(data$E1) #dummy data, you may want to delete me!!
+# data$E1 <- as.numeric(data$E1) #dummy data, you may want to delete me!!
 
 
 ```
@@ -117,7 +117,7 @@ data<-subset(data,data$Minutes<=270)
 # calculate the mean value of our negative control in a new df
 #selecting columns with data - column with negative control
 #note: na.rm=TRUE tells R to ignore NAs
-neg <- data[,3:27] - mean(data$A1, na.rm=TRUE)
+neg <- data[,3:26] - mean(data$A1, na.rm=TRUE)
 #Trying something out where I subtract each data column by the negative control at that moment
 #neg <- data[,3:27] - data$A1
 #mean(data$A1, na.rm=TRUE)
@@ -131,7 +131,7 @@ neg <- neg %>%
              .before = "Minutes")
 neg <- neg %>%
   add_column(Time.Elapsed.Sec = data$Time.Elapsed.Sec,
-             .after = "E1") 
+             .after = "D6") 
 neg <- neg %>%
   add_column(Time.Elapsed.Min = data$Time.Elapsed.Min,
              .after = "Time.Elapsed.Sec")
@@ -144,7 +144,7 @@ data <- neg
 
 ```{r EDIT ME - TEMPLATE UPLOAD FOR WEIGHTS}
 getwd()
-resp_info <- read.csv("template_resp_EXP3B_3_09_05_22_e_coli_Oxygen.csv", header=TRUE) # NUMBER ORDER, NOT LETTER ORDER
+resp_info <- read.csv("SA_template_resp_EXP1A_1_07_26_22_NO_e_coli_Oxygen.csv", header=TRUE) # NUMBER ORDER, NOT LETTER ORDER
   volume= as.numeric(resp_info$volume)
   t= as.numeric(resp_info$temp)
   S= as.numeric(resp_info$salinity)
@@ -155,16 +155,15 @@ resp_info <- read.csv("template_resp_EXP3B_3_09_05_22_e_coli_Oxygen.csv", header
 ```{r num vials filled}
 #RUN BASED ON NUMBERS NOT LETTERS! (NEED IT IN ORDER)
 #enter number of vials filled in experiment
-#do NOT include negative control but DO include dummy data
 num_vials_filled <- 24
 ```
 
-```{r generate background respiration rate, SW + E. coli}
+```{r generate background respiration rate, SW and then SW + E. coli}
 
-#backgroun SW rate of SW only
+#background SW rate of SW only
 library(respR)
-# Make a SW control dataframe using columns 4 &5
-SW.data <- na.omit(data[c(29, 4)]) 
+# Make a SW control dataframe using columns 4 &5 #MAKE SURE THIS IS IN MINUTES
+SW.data <- na.omit(data[c(28, 4)]) 
 
 # SW inspect object, with all oxygen values pooled
 SW_insp <- inspect(SW.data,
@@ -185,7 +184,7 @@ print(SW.rate)
 getwd()
 
 #Now for SW and E. coli together
-SW.EC.data <- na.omit(data[c(29, 4)]) #time.elapsed.min and the column with SW + E_coli
+SW.EC.data <- na.omit(data[c(28, 4)]) #time.elapsed.min and the column with SW + E_coli
 #MAY NEED TO CHANGE THE 4 IF E COLI CONTROL IS IN A DIFFERENT COLUMN
 #For exp 3 resp run #3, e coli is in 4
 #All others it is in 5!!
@@ -206,9 +205,10 @@ SW.EC.rate <- calc_rate.bg(SW.EC.data,
 
 SW.EC.rate
 ```
+
 ```{r Negative oxygen control}
 # Make a -O2 control data_speroffframe using column 3
-NEG.O2.data<- na.omit(data[c(29, 3)])
+NEG.O2.data<- na.omit(data[c(28, 3)])
 
 # Inspect 
 NEG_O2_insp <- inspect(NEG.O2.data,
@@ -218,7 +218,7 @@ NEG_O2_insp <- inspect(NEG.O2.data,
 # Print
 print(NEG_O2_insp)
 
-# Calc background rate of sw subset data_speroff 
+# Calc background rate of sw subset 
 NEG.O2.rate <- calc_rate.bg(NEG.O2.data, 
                             time = 1,
                             oxygen = 2)
@@ -231,10 +231,9 @@ print(NEG.O2.rate)
 ```{r For loop}
 
 # create empty output vector to fill in in for loop
-output_mass_specific_O2 <- rep("NA", num_vials_filled)
+output_area_specific_O2 <- rep("NA", num_vials_filled)
 # selecting columns with data based on number of vials filled
-data2 <- data[, c(1:2, 3:(3 + num_vials_filled), 28:29)] #update last columns for a full run
-#data2 <- data[, c(1:2, 3:(2 + num_vials_filled), 18:19)] #update last columns for a full run
+data2 <- data[, c(1:2, 3:(3 + num_vials_filled), 27:28)] #update last columns for a full run
 #running for loop for number of vials filled
 #IT WAS BREAKING ON #1 SO I CHANGED IT TO 2: num_vials_filled
 for (i in 2:num_vials_filled) { 
@@ -279,38 +278,38 @@ for (i in 2:num_vials_filled) {
 #now adjusting the rate to E. coli + SW
   temp_adjusted_rate <- adjust_rate(temp_rate, SW.EC.rate) #adjust to background seawater respiration WITH E COLI
 
-  mass_animal= as.numeric(resp_info[1, i + 8]) #selecting 8 because that is the first with real data -- first vial column will always be negative control
+  area_animal= as.numeric(resp_info[1, i + 8]) #selecting 8 because that is the first with real data -- first vial column will always be negative control
   
   MO2_temp <- convert_rate(temp_adjusted_rate,
                        oxy.unit = "%Air",            # original O2 units
                        time.unit = "min",        # time units 
-                       output.unit = "umol/min/g",     # desired rate units 
-                       volume = volume,             # chamber liquid volume
-                       mass = mass_animal,              # mass in GRAMS
+                       output.unit = "umol/hr/cm2",     # desired rate units 
+                       volume = 0.0019,             # chamber liquid volume, IN LITERS
+                       area=convert_val(area_animal, from="cm2"),              # area in GRAMS
                        t = t,                 # temperature
                        S = S,                   # salinity 
                        P = P)               # atmospheric pressure
 
-  #now we extract the mass specific rates and put them in the empty vector we made
-  output_mass_specific_O2[i] <- as.numeric(MO2_temp$summary$rate.m.spec)
+  #now we extract the area specific rates and put them in the empty vector we made
+  output_area_specific_O2[i] <- as.numeric(MO2_temp$summary$rate.a.spec)
 
 }
 t
 S
 P
-mass_animal
+area_animal
 
- output_mass_specific_O2[6]
+ output_area_specific_O2[6]
 ```
 
 
 
 ```{r EDIT ME - OUTPUT FILE}
-#taking output from output_mass_specific_O2 and putting it into a CSV by vial name
+#taking output from output_area_specific_O2 and putting it into a CSV by vial name
 names <- c("B1", "C1", "D1", "A2", "B2", "C2", "D2", "A3", "B3", "C3", "D3" ,"A4" ,"B4", "C4" ,"D4", "A5", "B5", "C5" ,"D5" ,"A6", "B6", "C6", "D6")
 names_temp <- names[1: num_vials_filled]
-output_temp<-rbind(names_temp,output_mass_specific_O2)
-write.csv(output_temp, "OUTPUT_EXP3B_3_09_05_22_e_coli_Oxygen.csv", row.names=FALSE)
+output_temp<-rbind(names_temp,output_area_specific_O2)
+write.csv(output_temp, "TESTECOLI1.csv", row.names=FALSE)
 
 
 ```
